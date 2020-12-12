@@ -1,20 +1,29 @@
-import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.scene.Scene
 import scalafx.scene.control.Button
-import scalafx.scene.input.{KeyCode, KeyEvent}
 import scalafx.scene.paint.Color._
 import scalafx.scene.paint.{LinearGradient, Stops}
-import scalafx.scene.shape.{Line, Polygon, Rectangle}
+import scalafx.scene.shape.{Circle, Line, Polygon}
 import scalafx.scene.text.Text
+
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
 
 object GUIgame extends JFXApp {
   val cellSize = 50
+//  val t = new java.util.Timer()
+//  val task = new java.util.TimerTask {
+//    def run() = println("Beep!")
+//  }
+//  t.schedule(task, 1000L, 1000L)
+//  task.cancel()
+
   stage = new PrimaryStage {
     title = "GUI Game"
-    val swidth = 500
-    val sheight = 500
+    val swidth = 550
+    val sheight = 550
 
     scene = new Scene(swidth,sheight) {
       fill = White
@@ -27,35 +36,48 @@ object GUIgame extends JFXApp {
           stops = Stops(PaleGreen, SeaGreen))
       }
 
-      onKeyPressed = (ev:KeyEvent) => {
-        if( ev.code == KeyCode.Left && player.getX-50 >= 0 ) {
-          player.x = player.getX - 50
-        }
-        else if( ev.code == KeyCode.Right && player.getX+50 <= swidth-player.getWidth) {
-          player.x = player.getX + 50
-        }
-        else if( ev.code == KeyCode.Up && player.getY-50 >= 0) {
-          player.y = player.getY - 50
-        }
-        else if(ev.code == KeyCode.Down && player.getY+50 <= sheight-player.getHeight){
-          player.y = player.getY + 50
-        }
-      }
+//      onKeyPressed = (ev:KeyEvent) => {
+//        if( ev.code == KeyCode.Left && player.getX-50 >= 0 ) {
+//          player.x = player.getX - 50
+//        }
+//        else if( ev.code == KeyCode.Right && player.getX+50 <= swidth-player.getWidth) {
+//          player.x = player.getX + 50
+//        }
+//        else if( ev.code == KeyCode.Up && player.getY-50 >= 0) {
+//          player.y = player.getY - 50
+//        }
+//        else if(ev.code == KeyCode.Down && player.getY+50 <= sheight-player.getHeight){
+//          player.y = player.getY + 50
+//        }
+//      }
 
       val grid: Seq[Line] = createGrid(swidth,sheight)
-
-      val player: Rectangle = new Rectangle{
-        x = 300
-        y = 300
-        width = cellSize
-        height = cellSize
+      val player: Circle = new Circle{
+        centerX= swidth/2
+        centerY= sheight/2
+        radius= cellSize/2
         fill = Green
       }
-
+      val tris: Seq[Polygon]=Seq(triangle(0,1,"LtR"))
+      createTri(0,0,"TtB",draw _)
       content = grid ++ Seq(
-        player,triangle(4,4,"RtL")
-      )
+        player) ++ tris
+
+      def draw(n:Polygon)={
+        tris:+n
+        tris
+      }
     }
+  }
+
+  def createTri(x:Double,y:Double,dir:String,d:Polygon => Unit) = {
+    val tri= Future{
+      triangle(x,y,"LtR")
+    }
+      tri.onComplete {
+        case Failure(ex) => println(ex.getMessage)
+        case Success(v) => d(v)
+      }
   }
   def createGrid(height:Int,width:Int):Seq[Line] = {
     var xgrid: Seq[Line] = Seq()
