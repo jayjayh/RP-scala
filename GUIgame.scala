@@ -47,43 +47,26 @@ object GUIgame extends JFXApp {
     def draw(n:Polygon): Unit = {
       tris = tris:+n
     }
-    def move(tri:Polygon):Polygon={
-      val pts = tri.getPoints
-      var fwd=0
-      tri.fill match{
-        case Blue => fwd=2
-        case Orange => fwd=1
-        case Red => fwd=3
-        case _ => fwd=0
-      }
-      var X=pts(0)/cellSize
-      var Y=pts(1)/cellSize
-      val dir= tri.accessibleText.toString()
 
-      dir match{
-      case "LtR" => X+=fwd
-      case "RtL" => X-=fwd
-      case "TtB" => Y+=fwd
-      case "BtT" => Y-=fwd
-      case _ => X+=fwd
-      }
-      triangle(X,Y,dir,fwd)
-    }
     scene = new Scene(swidth,sheight) {
       fill = White
       genTri()
       onKeyPressed = (ev:KeyEvent) => {
         if( ev.code == KeyCode.Left) {
+          tris.map(shiftRt(_))
           println("left")
           println(tris)
         }
         else if( ev.code == KeyCode.Right) {
+          tris.map(shiftLft(_))
           println("right")
         }
         else if( ev.code == KeyCode.Up) {
+          tris.map(shiftDwn(_))
           println("up")
         }
         else if(ev.code == KeyCode.Down){
+          tris.map(shiftUp(_))
           println("down")
         }
       }
@@ -95,9 +78,65 @@ object GUIgame extends JFXApp {
           println("button pressed")
         }
       }
-
+      def moveFwd(tri:Polygon):Unit={
+        Future{
+          var fwd=0
+          tri.getFill match{
+            case Blue => fwd=2
+            case Orange => fwd=1
+            case Red => fwd=3
+            case _ => fwd=0
+          }
+          var X=0.0
+          var Y=0.0
+          val dir:String= tri.userData.toString
+          dir match {
+            case "LtR" => X =tri.getLayoutX + fwd * cellSize
+            case "RtL" => X = tri.getLayoutX - fwd * cellSize
+            case "TtB" => Y = tri.getLayoutY + fwd * cellSize
+            case "BtT" => Y = tri.getLayoutY - fwd * cellSize
+            case _ => println("dirMatchErr")
+          }
+          List(X,Y)
+        }.onComplete{
+          case Success(v) => tri.layoutX = v(0);tri.layoutY = v(1)
+          case Failure(ex) => println(ex.getMessage)
+        }
+      }
+      def shiftUp(tri:Polygon): Unit ={
+        Future{
+          tri.getLayoutY - cellSize
+        }.onComplete{
+          case Success(v) => tri.layoutY = v
+          case Failure(ex) => println(ex.getMessage)
+        }
+      }
+      def shiftDwn(tri:Polygon): Unit ={
+        Future{
+          tri.getLayoutY + cellSize
+        }.onComplete{
+          case Success(v) => tri.layoutY = v
+          case Failure(ex) => println(ex.getMessage)
+        }
+      }
+      def shiftLft(tri:Polygon): Unit ={
+        Future{
+          tri.getLayoutX - cellSize
+        }.onComplete{
+          case Success(v) => tri.layoutX = v
+          case Failure(ex) => println(ex.getMessage)
+        }
+      }
+      def shiftRt(tri:Polygon): Unit ={
+        Future{
+          tri.getLayoutX + cellSize
+        }.onComplete{
+          case Success(v) => tri.layoutX = v
+          case Failure(ex) => println(ex.getMessage)
+        }
+      }
       def update():Unit ={
-        tris.map(move(_))
+        tris.map(moveFwd(_))
         content = grid ++ Seq(player,restartbutton,quitbutton) ++ tris
         timer.playFromStart()
       }
@@ -106,7 +145,7 @@ object GUIgame extends JFXApp {
       def genTri(): Unit ={
         val r = new Random()
         Future{
-          Thread.sleep(1000)
+//          Thread.sleep(1000)
           while(r.nextInt(6) != 0){
             Thread.sleep(1000)
           }
@@ -152,7 +191,7 @@ object GUIgame extends JFXApp {
   }
   def triangle(x:Double, y:Double,dir:String,steps:Int): Polygon = {
     val triangle = new Polygon()
-    triangle.accessibleText=dir
+    triangle.userData = dir
     dir match {
       case "LtR" => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), 0+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), (cellSize/2)+(y*cellSize))
       case "RtL" => triangle.getPoints.setAll(cellSize+(x*cellSize), 0+(y*cellSize), cellSize+(x*cellSize), cellSize+(y*cellSize), 0+(x*cellSize), (cellSize/2)+(y*cellSize))
