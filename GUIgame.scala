@@ -1,15 +1,13 @@
+import scalafx.Includes._
+import scalafx.animation.PauseTransition
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.scene.Scene
 import scalafx.scene.control.Button
-import scalafx.scene.paint.Color._
-import scalafx.scene.paint.{LinearGradient, Stops}
-import scalafx.scene.shape.{Circle, Line, Polygon}
-import scalafx.scene.text.Text
-import scalafx.Includes._
-import scalafx.event.ActionEvent
 import scalafx.scene.input.{KeyCode, KeyEvent}
-import scalafx.scene.layout.VBox
+import scalafx.scene.paint.Color._
+import scalafx.scene.shape.{Circle, Line, Polygon}
+import scalafx.util.Duration
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -43,9 +41,33 @@ object GUIgame extends JFXApp {
         stage.close()
       }
     }
-    createTri(0,0,"TtB",draw)
+    val timer = new PauseTransition(Duration(1500))
+    timer.play
+//    createTri(0,0,"TtB",rand.nextInt(3)+1,draw)
     def draw(n:Polygon): Unit = {
       tris = tris:+n
+    }
+    def move(tri:Polygon):Polygon={
+      val pts = tri.getPoints
+      var fwd=0
+      tri.fill match{
+        case Blue => fwd=2
+        case Orange => fwd=1
+        case Red => fwd=3
+        case _ => fwd=0
+      }
+      var X=pts(0)/cellSize
+      var Y=pts(1)/cellSize
+      val dir= tri.accessibleText.toString()
+
+      dir match{
+      case "LtR" => X+=fwd
+      case "RtL" => X-=fwd
+      case "TtB" => Y+=fwd
+      case "BtT" => Y-=fwd
+      case _ => X+=fwd
+      }
+      triangle(X,Y,dir,fwd)
     }
     scene = new Scene(swidth,sheight) {
       fill = White
@@ -69,13 +91,18 @@ object GUIgame extends JFXApp {
         text = "Restart"
         relocate(10,555)
         onAction = () => {
-          println("button pressed")
           update()
+          println("button pressed")
         }
       }
+
       def update():Unit ={
+        tris.map(move(_))
         content = grid ++ Seq(player,restartbutton,quitbutton) ++ tris
+        timer.playFromStart()
       }
+      timer.onFinished = {() =>update();println("updated")}
+
       def genTri(): Unit ={
         val r = new Random()
         Future{
@@ -95,10 +122,10 @@ object GUIgame extends JFXApp {
 
         val rand = new Random()
         rand.nextInt(4) match{
-          case 0 => createTri(0,rand.nextInt(11),"LtR",draw); println("generated triangle")
-          case 1 => createTri(rand.nextInt(11),0,"TtB",draw); println("generated triangle")
-          case 2 => createTri(10,rand.nextInt(11),"RtL",draw); println("generated triangle")
-          case 3 => createTri(rand.nextInt(11),10,"BtT",draw); println("generated triangle")
+          case 0 => createTri(0,rand.nextInt(11),"LtR",rand.nextInt(3)+1,draw); println("generated triangle")
+          case 1 => createTri(rand.nextInt(11),0,"TtB",rand.nextInt(3)+1,draw); println("generated triangle")
+          case 2 => createTri(10,rand.nextInt(11),"RtL",rand.nextInt(3)+1,draw); println("generated triangle")
+          case 3 => createTri(rand.nextInt(11),10,"BtT",rand.nextInt(3)+1,draw); println("generated triangle")
           case _ => println("Error")
         }
       }
@@ -107,9 +134,9 @@ object GUIgame extends JFXApp {
     }
   }
 
-  def createTri(x:Double,y:Double,dir:String,d:Polygon => Unit): Unit = {
+  def createTri(x:Double,y:Double,dir:String,step:Int,d:Polygon => Unit): Unit = {
     val tri= Future{
-      triangle(x,y,dir)
+      triangle(x,y,dir,step)
     }
     tri.onComplete {
       case Failure(ex) => println(ex.getMessage)
@@ -123,8 +150,9 @@ object GUIgame extends JFXApp {
     ygrid = for (n <- (0 to width).by(cellSize)) yield new Line {startX = n; startY = 0; endX = n; endY = height}
     xgrid++ygrid
   }
-  def triangle(x:Double, y:Double,dir:String): Polygon = {
+  def triangle(x:Double, y:Double,dir:String,steps:Int): Polygon = {
     val triangle = new Polygon()
+    triangle.accessibleText=dir
     dir match {
       case "LtR" => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), 0+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), (cellSize/2)+(y*cellSize))
       case "RtL" => triangle.getPoints.setAll(cellSize+(x*cellSize), 0+(y*cellSize), cellSize+(x*cellSize), cellSize+(y*cellSize), 0+(x*cellSize), (cellSize/2)+(y*cellSize))
@@ -132,7 +160,12 @@ object GUIgame extends JFXApp {
       case "BtT" => triangle.getPoints.setAll(0+(x*cellSize), cellSize+(y*cellSize), (cellSize/2)+(x*cellSize), 0+(y*cellSize), cellSize+(x*cellSize), cellSize+(y*cellSize))
       case _ => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), 0+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), (cellSize/2)+(y*cellSize))
     }
-    triangle.fill= Orange
+    steps match{
+      case 1=>triangle.fill= Orange
+      case 2=>triangle.fill= Blue
+      case 3=>triangle.fill= Red
+      case _=>triangle.fill= Orange
+    }
     triangle
   }
 }
