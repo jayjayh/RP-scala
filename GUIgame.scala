@@ -51,25 +51,7 @@ object GUIgame extends JFXApp {
     scene = new Scene(swidth,sheight) {
       fill = White
       genTri()
-      onKeyPressed = (ev:KeyEvent) => {
-        if( ev.code == KeyCode.Left) {
-          tris.map(shiftRt(_))
-          println("left")
-          println(tris)
-        }
-        else if( ev.code == KeyCode.Right) {
-          tris.map(shiftLft(_))
-          println("right")
-        }
-        else if( ev.code == KeyCode.Up) {
-          tris.map(shiftDwn(_))
-          println("up")
-        }
-        else if(ev.code == KeyCode.Down){
-          tris.map(shiftUp(_))
-          println("down")
-        }
-      }
+
       val restartbutton:Button = new Button {
         text = "Restart"
         relocate(10,555)
@@ -103,38 +85,7 @@ object GUIgame extends JFXApp {
           case Failure(ex) => println(ex.getMessage)
         }
       }
-      def shiftUp(tri:Polygon): Unit ={
-        Future{
-          tri.getLayoutY - cellSize
-        }.onComplete{
-          case Success(v) => tri.layoutY = v
-          case Failure(ex) => println(ex.getMessage)
-        }
-      }
-      def shiftDwn(tri:Polygon): Unit ={
-        Future{
-          tri.getLayoutY + cellSize
-        }.onComplete{
-          case Success(v) => tri.layoutY = v
-          case Failure(ex) => println(ex.getMessage)
-        }
-      }
-      def shiftLft(tri:Polygon): Unit ={
-        Future{
-          tri.getLayoutX - cellSize
-        }.onComplete{
-          case Success(v) => tri.layoutX = v
-          case Failure(ex) => println(ex.getMessage)
-        }
-      }
-      def shiftRt(tri:Polygon): Unit ={
-        Future{
-          tri.getLayoutX + cellSize
-        }.onComplete{
-          case Success(v) => tri.layoutX = v
-          case Failure(ex) => println(ex.getMessage)
-        }
-      }
+
       def update():Unit ={
         tris.map(moveFwd(_))
         content = grid ++ Seq(player,restartbutton,quitbutton) ++ tris
@@ -171,40 +122,84 @@ object GUIgame extends JFXApp {
       content = grid ++ Seq(player,restartbutton,quitbutton) ++ tris
 
     }
+    def shiftUp(tri:Polygon): Unit ={
+      Future{
+        tri.getLayoutY - cellSize
+      }.onComplete{
+        case Success(v) => tri.layoutY = v
+        case Failure(ex) => println(ex.getMessage)
+      }
+    }
+    def shiftDwn(tri:Polygon): Unit ={
+      Future{
+        tri.getLayoutY + cellSize
+      }.onComplete{
+        case Success(v) => tri.layoutY = v
+        case Failure(ex) => println(ex.getMessage)
+      }
+    }
+    def shiftLft(tri:Polygon): Unit ={
+      Future{
+        tri.getLayoutX - cellSize
+      }.onComplete{
+        case Success(v) => tri.layoutX = v
+        case Failure(ex) => println(ex.getMessage)
+      }
+    }
+    def shiftRt(tri:Polygon): Unit ={
+      Future{
+        tri.getLayoutX + cellSize
+      }.onComplete{
+        case Success(v) => tri.layoutX = v
+        case Failure(ex) => println(ex.getMessage)
+      }
+    }
+    def createTri(x:Double,y:Double,dir:String,step:Int,d:Polygon => Unit): Unit = {
+      val tri= Future{
+        triangle(x,y,dir,step,shiftLft ,shiftRt,shiftUp,shiftDwn)
+      }
+      tri.onComplete {
+        case Failure(ex) => println(ex.getMessage)
+        case Success(v) => d(v)
+      }
+    }
+    def createGrid(height:Int,width:Int):Seq[Line] = {
+      var xgrid: Seq[Line] = Seq()
+      var ygrid: Seq[Line] = Seq()
+      xgrid = for (n <- (0 to height).by(cellSize)) yield new Line {startX = 0; startY = n; endX = width; endY = n}
+      ygrid = for (n <- (0 to width).by(cellSize)) yield new Line {startX = n; startY = 0; endX = n; endY = height}
+      xgrid++ygrid
+    }
+    def triangle(x:Double, y:Double,dir:String,steps:Int,
+                 shiftLft:(Polygon)=> Unit,
+                 shiftRt:(Polygon)=> Unit ,
+                 shiftUp:(Polygon)=> Unit,
+                 shiftDwn:(Polygon)=> Unit): Polygon = {
+      val triangle = new Polygon()
+      triangle.userData = dir
+      dir match {
+        case "LtR" => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), 0+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), (cellSize/2)+(y*cellSize))
+        case "RtL" => triangle.getPoints.setAll(cellSize+(x*cellSize), 0+(y*cellSize), cellSize+(x*cellSize), cellSize+(y*cellSize), 0+(x*cellSize), (cellSize/2)+(y*cellSize))
+        case "TtB" => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), (cellSize/2)+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), 0+(y*cellSize))
+        case "BtT" => triangle.getPoints.setAll(0+(x*cellSize), cellSize+(y*cellSize), (cellSize/2)+(x*cellSize), 0+(y*cellSize), cellSize+(x*cellSize), cellSize+(y*cellSize))
+        case _ => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), 0+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), (cellSize/2)+(y*cellSize))
+      }
+      steps match{
+        case 1=>triangle.fill= Orange
+        case 2=>triangle.fill= Blue
+        case 3=>triangle.fill= Red
+        case _=>triangle.fill= Orange
+      }
+      triangle.onKeyPressed = (ev:KeyEvent) => {
+        ev.code match{
+          case KeyCode.Left =>  shiftRt(triangle)
+          case KeyCode.Right => shiftLft(triangle)
+          case KeyCode.Up => shiftDwn(triangle)
+          case KeyCode.Down=> shiftUp(triangle)
+        }
+      }
+      triangle
+    }
   }
 
-  def createTri(x:Double,y:Double,dir:String,step:Int,d:Polygon => Unit): Unit = {
-    val tri= Future{
-      triangle(x,y,dir,step)
-    }
-    tri.onComplete {
-      case Failure(ex) => println(ex.getMessage)
-      case Success(v) => d(v)
-    }
-  }
-  def createGrid(height:Int,width:Int):Seq[Line] = {
-    var xgrid: Seq[Line] = Seq()
-    var ygrid: Seq[Line] = Seq()
-    xgrid = for (n <- (0 to height).by(cellSize)) yield new Line {startX = 0; startY = n; endX = width; endY = n}
-    ygrid = for (n <- (0 to width).by(cellSize)) yield new Line {startX = n; startY = 0; endX = n; endY = height}
-    xgrid++ygrid
-  }
-  def triangle(x:Double, y:Double,dir:String,steps:Int): Polygon = {
-    val triangle = new Polygon()
-    triangle.userData = dir
-    dir match {
-      case "LtR" => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), 0+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), (cellSize/2)+(y*cellSize))
-      case "RtL" => triangle.getPoints.setAll(cellSize+(x*cellSize), 0+(y*cellSize), cellSize+(x*cellSize), cellSize+(y*cellSize), 0+(x*cellSize), (cellSize/2)+(y*cellSize))
-      case "TtB" => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), (cellSize/2)+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), 0+(y*cellSize))
-      case "BtT" => triangle.getPoints.setAll(0+(x*cellSize), cellSize+(y*cellSize), (cellSize/2)+(x*cellSize), 0+(y*cellSize), cellSize+(x*cellSize), cellSize+(y*cellSize))
-      case _ => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), 0+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), (cellSize/2)+(y*cellSize))
-    }
-    steps match{
-      case 1=>triangle.fill= Orange
-      case 2=>triangle.fill= Blue
-      case 3=>triangle.fill= Red
-      case _=>triangle.fill= Orange
-    }
-    triangle
-  }
 }
