@@ -6,78 +6,115 @@ import scalafx.scene.paint.Color._
 import scalafx.scene.paint.{LinearGradient, Stops}
 import scalafx.scene.shape.{Circle, Line, Polygon}
 import scalafx.scene.text.Text
+import scalafx.Includes._
+import scalafx.event.ActionEvent
+import scalafx.scene.input.{KeyCode, KeyEvent}
+import scalafx.scene.layout.VBox
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
+import scala.concurrent.Future
+import scala.util.{Failure, Random, Success}
 
 object GUIgame extends JFXApp {
   val cellSize = 50
-//  val t = new java.util.Timer()
-//  val task = new java.util.TimerTask {
-//    def run() = println("Beep!")
-//  }
-//  t.schedule(task, 1000L, 1000L)
-//  task.cancel()
-
-  stage = new PrimaryStage {
+  //  val t = new java.util.Timer()
+  //  val task = new java.util.TimerTask {
+  //    def run() = println("Beep!")
+  //  }
+  //  t.schedule(task, 1000L, 1000L)
+  //  task.cancel()
+  stage = new PrimaryStage{
     title = "GUI Game"
+    height = 625
     val swidth = 550
     val sheight = 550
-
+    var tris: Seq[Polygon] = Seq()
+    val grid: Seq[Line] = createGrid(swidth,sheight)
+    val player: Circle = new Circle{
+      centerX= swidth/2
+      centerY= sheight/2
+      radius= cellSize/2
+      fill = Green
+    }
+    val quitbutton:Button = new Button {
+      text = "Quit"
+      relocate(500,555)
+      onAction = () => {
+        stage.close()
+      }
+    }
+    createTri(0,0,"TtB",draw)
+    def draw(n:Polygon): Unit = {
+      tris = tris:+n
+    }
     scene = new Scene(swidth,sheight) {
       fill = White
-      val button = new Button("Restart")
-      val txt: Text = new Text{
-        text = "Hello World!"
-        style = "-fx-font-size: 48pt"
-        fill = new LinearGradient(
-          endX = 0,
-          stops = Stops(PaleGreen, SeaGreen))
+      genTri()
+      onKeyPressed = (ev:KeyEvent) => {
+        if( ev.code == KeyCode.Left) {
+          println("left")
+          println(tris)
+        }
+        else if( ev.code == KeyCode.Right) {
+          println("right")
+        }
+        else if( ev.code == KeyCode.Up) {
+          println("up")
+        }
+        else if(ev.code == KeyCode.Down){
+          println("down")
+        }
       }
-
-//      onKeyPressed = (ev:KeyEvent) => {
-//        if( ev.code == KeyCode.Left && player.getX-50 >= 0 ) {
-//          player.x = player.getX - 50
-//        }
-//        else if( ev.code == KeyCode.Right && player.getX+50 <= swidth-player.getWidth) {
-//          player.x = player.getX + 50
-//        }
-//        else if( ev.code == KeyCode.Up && player.getY-50 >= 0) {
-//          player.y = player.getY - 50
-//        }
-//        else if(ev.code == KeyCode.Down && player.getY+50 <= sheight-player.getHeight){
-//          player.y = player.getY + 50
-//        }
-//      }
-
-      val grid: Seq[Line] = createGrid(swidth,sheight)
-      val player: Circle = new Circle{
-        centerX= swidth/2
-        centerY= sheight/2
-        radius= cellSize/2
-        fill = Green
+      val restartbutton:Button = new Button {
+        text = "Restart"
+        relocate(10,555)
+        onAction = () => {
+          println("button pressed")
+          update()
+        }
       }
-      val tris: Seq[Polygon]=Seq(triangle(0,1,"LtR"))
-      createTri(0,0,"TtB",draw _)
-      content = grid ++ Seq(
-        player) ++ tris
-
-      def draw(n:Polygon)={
-        tris:+n
-        tris
+      def update():Unit ={
+        content = grid ++ Seq(player,restartbutton,quitbutton) ++ tris
       }
+      def genTri(): Unit ={
+        val r = new Random()
+        Future{
+          Thread.sleep(1000)
+          while(r.nextInt(6) != 0){
+            Thread.sleep(1000)
+          }
+        }.onComplete{
+          case Success(s) => {
+            genRandTriangle()
+            genTri()
+          }
+          case Failure(f) => println(f)
+        }
+      }
+      def genRandTriangle(): Unit ={
+
+        val rand = new Random()
+        rand.nextInt(4) match{
+          case 0 => createTri(0,rand.nextInt(11),"LtR",draw); println("generated triangle")
+          case 1 => createTri(rand.nextInt(11),0,"TtB",draw); println("generated triangle")
+          case 2 => createTri(10,rand.nextInt(11),"RtL",draw); println("generated triangle")
+          case 3 => createTri(rand.nextInt(11),10,"BtT",draw); println("generated triangle")
+          case _ => println("Error")
+        }
+      }
+      content = grid ++ Seq(player,restartbutton,quitbutton) ++ tris
+
     }
   }
 
-  def createTri(x:Double,y:Double,dir:String,d:Polygon => Unit) = {
+  def createTri(x:Double,y:Double,dir:String,d:Polygon => Unit): Unit = {
     val tri= Future{
-      triangle(x,y,"LtR")
+      triangle(x,y,dir)
     }
-      tri.onComplete {
-        case Failure(ex) => println(ex.getMessage)
-        case Success(v) => d(v)
-      }
+    tri.onComplete {
+      case Failure(ex) => println(ex.getMessage)
+      case Success(v) => d(v)
+    }
   }
   def createGrid(height:Int,width:Int):Seq[Line] = {
     var xgrid: Seq[Line] = Seq()
@@ -86,7 +123,7 @@ object GUIgame extends JFXApp {
     ygrid = for (n <- (0 to width).by(cellSize)) yield new Line {startX = n; startY = 0; endX = n; endY = height}
     xgrid++ygrid
   }
-  def triangle(x:Double, y:Double,dir:String) = {
+  def triangle(x:Double, y:Double,dir:String): Polygon = {
     val triangle = new Polygon()
     dir match {
       case "LtR" => triangle.getPoints.setAll(0+(x*cellSize), 0+(y*cellSize), 0+(x*cellSize), cellSize+(y*cellSize), cellSize+(x*cellSize), (cellSize/2)+(y*cellSize))
