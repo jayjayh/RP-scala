@@ -49,7 +49,7 @@ object GUIgame extends JFXApp {
         stage.close()
       }
     }
-    val timer = new PauseTransition(Duration(1500))
+    val timer = new PauseTransition(Duration(200))
     timer.play
     //    createTri(0,0,"TtB",rand.nextInt(3)+1,draw)
     def draw(n:Polygon): Unit = {
@@ -121,14 +121,14 @@ object GUIgame extends JFXApp {
         content = grid ++ Seq(player,restartbutton,quitbutton,startButton) ++ tris
         timer.playFromStart()
       }
-      timer.onFinished = {() =>update();println("updated")}
+      timer.onFinished = {() =>update()}
 
       def genTri(): Unit ={
         val r = new Random()
         Future{
           //          Thread.sleep(1000)
-          while(r.nextInt(6) != 0){
-            Thread.sleep(1000)
+          while(r.nextInt(4) != 0){
+            Thread.sleep(1500)
           }
         }.onComplete{
           case Success(s) => {
@@ -143,6 +143,26 @@ object GUIgame extends JFXApp {
         tris = tris.filterNot(_.eq(d))
 
       }
+      def value(d:Polygon):List[Int] ={
+        val dir = d.userData
+        val col = d.getFill
+        var xy:List[Int]= List()
+
+        dir match {
+          case "LtR" => xy = xy :+ cellSize; xy = xy :+ 0
+          case "RtL" => xy = xy :+ -cellSize; xy = xy :+ 0
+          case "TtB" => xy = xy :+ 0; xy = xy :+ cellSize
+          case "BtT" => xy = xy :+ 0; xy = xy :+ -cellSize
+          case _ => xy = xy :+ 0; xy = xy :+ 0
+        }
+        col match{
+          case Orange => xy = xy :+ 1000
+          case Blue => xy = xy :+ 500
+          case Red => xy = xy :+ 100
+          case _ => xy = xy :+ 3000
+        }
+        xy
+      }
       def genRandTriangle(): Unit ={
         Future {
           var tri: Polygon = null
@@ -155,22 +175,20 @@ object GUIgame extends JFXApp {
             case _ => println("Error")
           }
           var xxx = tri.getPoints
-          var xx = tri.sceneToLocal(tri.getLayoutX,tri.getLayoutY)
-          var x = xxx.get(0)
-          var y = xxx.get(1)
-          println(x + " " + y)
-          while(x <= swidth+(cellSize) && x >= 0 && y <= sheight+(cellSize) && y >= 0) {
-            tri.getPoints.setAll(x + cellSize,y,xxx.get(2)+ cellSize,xxx(3),xxx(4)+cellSize,xxx(5))
+          val v = value(tri)
+          val movex:Int = v.head
+          val movey = v(1)
+          val speed = v(2)
+          while(xxx(0) <= swidth+(cellSize) && xxx(0) >= 0 && xxx(1) <= sheight+(cellSize) && xxx(1) >= 0) {
+            tri.getPoints.setAll(xxx(0) + movex,xxx(1) + movey,xxx.get(2)+ movex,xxx(3) + movey,xxx(4)+movex,xxx(5) + movey)
             xxx = tri.getPoints
-            x = xxx.get(0)
-            y = xxx.get(1)
-            Thread.sleep(1000)
-            println(x + " " + y + " bounds: x<=" + (swidth+(cellSize)) + " y<=" + (sheight+(cellSize)))
+            Thread.sleep(speed)
+            //println(x + " " + y + " bounds: x<=" + (swidth+(cellSize)) + " y<=" + (sheight+(cellSize)))
           }
           tri
         }.onComplete{
-          case Success(v) => println("triangle done");v.disable();delete(v);println(tris);
-          case Failure(ex) => println(ex.getMessage)
+          case Success(v) => println("triangle done");delete(v);
+          case Failure(ex) => println(ex.getMessage + "failed")
 
         }
       }
